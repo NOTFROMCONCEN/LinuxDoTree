@@ -101,11 +101,73 @@
         });
     }
 
+    const manifest = chrome.runtime.getManifest();
     const versionEl = document.getElementById("version");
     if (versionEl) {
-        const manifest = chrome.runtime.getManifest();
         versionEl.textContent = manifest.version_name || manifest.version || "";
     }
+
+    function checkForUpdate() {
+        const REPO = "NOTFROMCONCEN/LinuxDoTree";
+        const CACHE_KEY = "linuxdotree_update_cache";
+        const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+        const currentVersion = (manifest.version_name || manifest.version || "").replace(/^v/, "");
+
+        function compareVersions(a, b) {
+            const pa = a.replace(/-.*$/, "").split(".").map(Number);
+            const pb = b.replace(/-.*$/, "").split(".").map(Number);
+            for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+                const diff = (pa[i] || 0) - (pb[i] || 0);
+                if (diff !== 0) return diff;
+            }
+            // same numeric part: release > beta
+            const aSuffix = a.includes("-") ? 0 : 1;
+            const bSuffix = b.includes("-") ? 0 : 1;
+            return aSuffix - bSuffix;
+        }
+
+        function showBanner(latestVersion, releaseUrl) {
+            const banner = document.getElementById("update-banner");
+            if (!banner) return;
+            banner.textContent = `⬆️ 发现新版本 ${latestVersion}，点击前往下载`;
+            banner.href = releaseUrl;
+            banner.hidden = false;
+            banner.addEventListener("click", (e) => {
+                e.preventDefault();
+                chrome.tabs.create({ url: releaseUrl });
+            });
+        }
+
+        chrome.storage.local.get([CACHE_KEY], (cached) => {
+            const now = Date.now();
+            const entry = cached[CACHE_KEY];
+            if (entry && now - entry.fetchedAt < CACHE_TTL) {
+                if (compareVersions(entry.latestVersion, currentVersion) > 0) {
+                    showBanner(entry.latestVersion, entry.releaseUrl);
+                }
+                return;
+            }
+
+            fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+                headers: { Accept: "application/vnd.github+json" }
+            })
+                .then((r) => r.ok ? r.json() : Promise.reject(r.status))
+                .then((data) => {
+                    const latestVersion = (data.tag_name || "").replace(/^v/, "");
+                    const releaseUrl = data.html_url || `https://github.com/${REPO}/releases/latest`;
+                    chrome.storage.local.set({
+                        [CACHE_KEY]: { latestVersion, releaseUrl, fetchedAt: now }
+                    });
+                    if (compareVersions(latestVersion, currentVersion) > 0) {
+                        showBanner(latestVersion, releaseUrl);
+                    }
+                })
+                .catch(() => { /* 网络失败静默忽略 */ });
+        });
+    }
+
+    checkForUpdate();
 
     storage.get(null, (items) => {
         const next = normalizeSettings(items);

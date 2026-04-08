@@ -228,3 +228,26 @@ h1 {
     font-size: 12px;
     font-weight: 700;
 }
+
+.update-banner {
+    display: block;
+    margin: 10px 0 0;
+    padding: 9px 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(113, 160, 120, 0.14), rgba(90, 150, 100, 0.08));
+    border: 1px solid rgba(90, 150, 100, 0.28);
+    color: #2e7d44;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    text-align: center;
+    letter-spacing: 0.01em;
+}
+
+.update-banner:hover {
+    background: linear-gradient(135deg, rgba(113, 160, 120, 0.22), rgba(90, 150, 100, 0.14));
+}
+
+.update-banner[hidden] {
+    display: none;
+}
