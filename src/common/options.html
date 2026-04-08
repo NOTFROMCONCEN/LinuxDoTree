@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>linuxdotree 设置</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <main class="page">
+        <section class="card">
+            <div class="layout">
+                <aside class="sidebar">
+                    <p class="eyebrow">linuxdotree</p>
+                    <h1>扩展设置</h1>
+                    <p id="version" class="version-text"></p>
+                    <p class="intro">用更安静的方式管理 Linux.do 的树形评论体验。</p>
+                    <div class="sidebar-panel">
+                        <strong>Beta 提示</strong>
+                        <p>当前仍在 beta 迭代中。像父链高亮这类实验功能建议按需开启，逐项观察效果。</p>
+                    </div>
+                </aside>
+
+                <form id="settings-form" class="settings">
+                    <section class="settings-group">
+                        <div class="group-head">
+                            <h2>浏览体验</h2>
+                            <p>控制页面跳转、排序、模式记忆与悬浮入口。</p>
+                        </div>
+
+                        <label class="setting">
+                            <input type="checkbox" id="autoRedirect">
+                            <span>
+                                <strong>自动进入树形评论</strong>
+                                <small>访问帖子时优先跳转到 `/nested/` 页面。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting setting-select">
+                            <span>
+                                <strong>默认排序模式</strong>
+                                <small>可选跟随站点默认，或固定为 <code>Top</code>、<code>New</code>、<code>Old</code>。</small>
+                            </span>
+                            <select id="defaultSortMode" class="select-control">
+                                <option value="default">跟随站点默认</option>
+                                <option value="top">Top</option>
+                                <option value="new">New</option>
+                                <option value="old">Old</option>
+                            </select>
+                        </label>
+
+                        <label class="setting">
+                            <input type="checkbox" id="interceptLinks">
+                            <span>
+                                <strong>改写站内帖子链接</strong>
+                                <small>点击帖子链接时优先进入树形评论地址。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting">
+                            <input type="checkbox" id="allowFlatView">
+                            <span>
+                                <strong>保留平铺模式入口</strong>
+                                <small>允许通过 <code>View as flat</code> 手动切回默认视图。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting">
+                            <input type="checkbox" id="rememberModePreference">
+                            <span>
+                                <strong>记忆模式偏好</strong>
+                                <small>记录你手动切换的树形 / 平铺选择，并在后续访问时优先使用。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting">
+                            <input type="checkbox" id="enableFloatingToggle">
+                            <span>
+                                <strong>显示页面内浮动切换按钮</strong>
+                                <small>在帖子页左下角提供树形 / 平铺一键切换入口。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting setting-disabled">
+                            <input type="checkbox" id="enableFloatingWidgetPlaceholder" disabled>
+                            <span>
+                                <strong>打开悬浮窗（暂不可用）</strong>
+                                <small>悬浮窗功能已暂时下线，后续稳定后再重新开放。</small>
+                            </span>
+                        </label>
+                    </section>
+
+                    <section class="settings-group">
+                        <div class="group-head">
+                            <h2>树形交互</h2>
+                            <p>分支折叠与实验性高亮能力。</p>
+                        </div>
+
+                        <label class="setting">
+                            <input type="checkbox" id="enableReplyFolding">
+                            <span>
+                                <strong>折叠回复分支</strong>
+                                <small>为树形评论加入分支折叠按钮，便于收起长分支。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting setting-disabled">
+                            <input type="checkbox" id="enableParentChainHighlight" disabled>
+                            <span>
+                                <strong>父链高亮（测试中，暂不可用）</strong>
+                                <small>该能力暂时下线，后续稳定后再重新开放。</small>
+                            </span>
+                        </label>
+                    </section>
+
+                    <section class="settings-group">
+                        <div class="group-head">
+                            <h2>Boost 与回复</h2>
+                            <p>优化 Boost 显示与短回复建议。</p>
+                        </div>
+
+                        <label class="setting setting-disabled">
+                            <input type="checkbox" id="optimizeBoosts" disabled>
+                            <span>
+                                <strong>优化 Boost 显示（暂不可用）</strong>
+                                <small>该能力暂时下线，后续稳定后再重新开放。</small>
+                            </span>
+                        </label>
+
+                        <label class="setting setting-disabled">
+                            <input type="checkbox" id="recommendBoostForShortReplies" disabled>
+                            <span>
+                                <strong>短回复推荐使用 Boost（暂不可用）</strong>
+                                <small>该能力暂时下线，后续稳定后再重新开放。</small>
+                            </span>
+                        </label>
+                    </section>
+
+                    <section class="settings-group full-span">
+                        <div class="group-head">
+                            <h2>范围控制</h2>
+                            <p>指定哪些分类自动应用树形模式。</p>
+                        </div>
+
+                        <label class="setting textarea-setting">
+                            <span>
+                                <strong>分类白名单</strong>
+                                <small>每行一个分类 slug 或分类名。留空表示对所有分类生效。</small>
+                            </span>
+                            <textarea id="categoryWhitelist" rows="6"
+                                placeholder="例如：&#10;开发调优&#10;软件开发&#10;pure-water"></textarea>
+                        </label>
+                    </section>
+
+                    <div class="actions">
+                        <button type="submit" class="button">保存设置</button>
+                        <button type="button" id="reset" class="button secondary">恢复默认</button>
+                    </div>
+                </form>
+            </div>
+
+            <p id="status" class="status" aria-live="polite"></p>
+        </section>
+    </main>
+
+    <script src="options.js"></script>
+</body>
+
+</html>

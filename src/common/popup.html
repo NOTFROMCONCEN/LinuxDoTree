@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>linuxdotree</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <main class="popup">
+        <header class="hero">
+            <div class="hero-copy">
+                <p class="eyebrow">linuxdotree &nbsp;<span id="version" class="version-badge"></span></p>
+                <h1>树形评论</h1>
+                <p class="subtitle">让 Linux.do 帖子默认进入更清晰的对话结构。</p>
+            </div>
+            <label class="switch-card" for="enabled">
+                <span class="switch-label">启用</span>
+                <input type="checkbox" id="enabled">
+                <span class="switch-ui" aria-hidden="true"></span>
+            </label>
+        </header>
+
+        <section class="panel">
+            <div class="panel-group">
+                <label class="row">
+                    <input type="checkbox" id="autoRedirect">
+                    <span>自动进入树形评论</span>
+                </label>
+                <label class="row">
+                    <input type="checkbox" id="allowFlatView">
+                    <span>允许切回平铺模式</span>
+                </label>
+            </div>
+            <div class="panel-divider"></div>
+            <div class="panel-group">
+                <label class="row row-select">
+                    <span>默认排序模式</span>
+                    <select id="defaultSortMode" class="popup-select">
+                        <option value="default">跟随站点</option>
+                        <option value="top">Top</option>
+                        <option value="new">New</option>
+                        <option value="old">Old</option>
+                    </select>
+                </label>
+                <label class="row">
+                    <input type="checkbox" id="enableReplyFolding">
+                    <span>折叠回复分支</span>
+                </label>
+            </div>
+        </section>
+
+        <section class="actions">
+            <button id="openOptions" class="button">打开完整设置</button>
+            <button id="openSite" class="button secondary">打开 Linux.do</button>
+        </section>
+
+        <p id="status" class="status" aria-live="polite"></p>
+    </main>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

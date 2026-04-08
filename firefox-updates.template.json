@@ -1,0 +1,12 @@
+{
+  "addons": {
+    "linuxdotree@local.extension": {
+      "updates": [
+        {
+          "version": "1.0.0",
+          "update_link": "https://example.com/linuxdotree-firefox-1.0.0.xpi"
+        }
+      ]
+    }
+  }
+}

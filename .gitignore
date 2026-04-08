@@ -1,0 +1,12 @@
+# 构建产物
+dist/
+packages/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+*.code-workspace
