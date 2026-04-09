@@ -1,20 +1,17 @@
 (async function () {
     "use strict";
 
-    const DEFAULT_SETTINGS = {
-        autoRedirect: true,
-        defaultSortMode: "old",
-        interceptLinks: true,
-        allowFlatView: true,
-        rememberModePreference: true,
-        enableFloatingToggle: true,
-        enableReplyFolding: true,
-        enableParentChainHighlight: false,
-        optimizeBoosts: false,
-        recommendBoostForShortReplies: false,
-        preferredMode: "nested",
-        categoryWhitelist: ""
-    };
+    const shared = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_SHARED) || {};
+    const DEFAULT_SETTINGS = shared.DEFAULT_SETTINGS || {};
+    const normalizeSortMode =
+        shared.normalizeSortMode ||
+        ((mode, legacyForceOldSort) =>
+            mode === "top" || mode === "new" || mode === "old" || mode === "default"
+                ? mode
+                : legacyForceOldSort
+                    ? "old"
+                    : "default");
+    const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
     const TOPIC_CATEGORY_MAP_KEY = "topicCategoryMap";
     const CATEGORY_MODE_MAP_KEY = "categoryModeMap";
@@ -111,22 +108,7 @@
         }
 
         const items = await getStorage(syncStorage, null);
-        return {
-            ...DEFAULT_SETTINGS,
-            ...items,
-            defaultSortMode: normalizeSortMode(items.defaultSortMode, items.forceOldSort),
-            enableParentChainHighlight: false,
-            optimizeBoosts: false,
-            recommendBoostForShortReplies: false
-        };
-    }
-
-    function normalizeSortMode(mode, legacyForceOldSort) {
-        if (mode === "top" || mode === "new" || mode === "old" || mode === "default") {
-            return mode;
-        }
-
-        return legacyForceOldSort ? "old" : "default";
+        return normalizeSettings(items);
     }
 
     function normalizeCategoryToken(value) {
@@ -1517,12 +1499,12 @@
             return;
         }
 
-        currentSettings = {
+        currentSettings = normalizeSettings({
             ...currentSettings,
             ...Object.fromEntries(
                 Object.entries(changes).map(([key, value]) => [key, value.newValue])
             )
-        };
+        });
 
         const enabled = Boolean(currentSettings.autoRedirect || currentSettings.interceptLinks);
         if (!enabled && window.location.pathname.startsWith("/nested/")) {
@@ -1534,40 +1516,42 @@
     }
 
     function installRouteWatcher() {
+        const WRAPPED_FLAG = Symbol("linuxdotreeWrapped");
         const emitChange = () => {
             window.dispatchEvent(new Event("linuxdotree:route-change"));
         };
+        const handleRouteChangeOnce = (() => {
+            let lastHandledHref = window.location.href;
+            return () => {
+                if (window.location.href === lastHandledHref) {
+                    return;
+                }
+
+                lastHandledHref = window.location.href;
+                lastHref = window.location.href;
+                schedulePageRefresh();
+            };
+        })();
 
         const wrapHistoryMethod = (methodName) => {
             const original = history[methodName];
+            if (original && original[WRAPPED_FLAG]) {
+                return;
+            }
+
             history[methodName] = function (...args) {
                 const result = original.apply(this, args);
                 emitChange();
                 return result;
             };
+            history[methodName][WRAPPED_FLAG] = true;
         };
 
         wrapHistoryMethod("pushState");
         wrapHistoryMethod("replaceState");
 
         window.addEventListener("popstate", emitChange);
-        window.addEventListener("linuxdotree:route-change", async () => {
-            if (window.location.href === lastHref) {
-                return;
-            }
-
-            lastHref = window.location.href;
-            schedulePageRefresh();
-        });
-
-        window.setInterval(async () => {
-            if (window.location.href === lastHref) {
-                return;
-            }
-
-            lastHref = window.location.href;
-            schedulePageRefresh();
-        }, 600);
+        window.addEventListener("linuxdotree:route-change", handleRouteChangeOnce);
     }
 
     if (await maybeRedirectOnLoad()) {
@@ -1651,22 +1635,72 @@
         });
     }
 
+    function shouldRefreshForMutations(mutations) {
+        const criticalSelector = [
+            ".topic-post",
+            "article[data-post-id]",
+            ".topic-body",
+            ".topic-map",
+            ".topic-title",
+            ".d-editor",
+            ".reply-area"
+        ].join(",");
+
+        const matchesCriticalNode = (node) =>
+            node instanceof Element && (node.matches(criticalSelector) || Boolean(node.querySelector(criticalSelector)));
+
+        return mutations.some((mutation) => {
+            const target = mutation.target instanceof Element ? mutation.target : null;
+            if (target && target.matches(criticalSelector)) {
+                return true;
+            }
+
+            for (const node of mutation.addedNodes) {
+                if (matchesCriticalNode(node)) {
+                    return true;
+                }
+            }
+
+            for (const node of mutation.removedNodes) {
+                if (matchesCriticalNode(node)) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+    }
+
+    function getMutationObserverTarget() {
+        return (
+            document.querySelector("#main-outlet") ||
+            document.querySelector(".topic-area") ||
+            document.querySelector(".topic-body") ||
+            document.body
+        );
+    }
+
+    function setupMutationObserver() {
+        const target = getMutationObserverTarget();
+        if (!(target instanceof Element)) {
+            return;
+        }
+
+        new MutationObserver((mutations) => {
+            if (!isOwnMutation(mutations) && shouldRefreshForMutations(mutations)) {
+                schedulePageRefresh();
+            }
+        }).observe(target, { childList: true, subtree: true });
+    }
+
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", () => {
             void refreshPageFeatures();
-            new MutationObserver((mutations) => {
-                if (!isOwnMutation(mutations)) {
-                    schedulePageRefresh();
-                }
-            }).observe(document.body, { childList: true, subtree: true });
+            setupMutationObserver();
         });
     } else {
         void refreshPageFeatures();
-        new MutationObserver((mutations) => {
-            if (!isOwnMutation(mutations)) {
-                schedulePageRefresh();
-            }
-        }).observe(document.body, { childList: true, subtree: true });
+        setupMutationObserver();
     }
 })().catch((error) => {
     const message = String(

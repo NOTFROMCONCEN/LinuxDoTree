@@ -42,10 +42,12 @@
         return next;
     }
 
-    globalScope.LINUXDOTREE_SHARED = Object.freeze({
+    const sharedApi = {
         DEFAULT_SETTINGS: Object.freeze({ ...DEFAULT_SETTINGS }),
         FORCED_DISABLED_FIELDS: Object.freeze([...FORCED_DISABLED_FIELDS]),
         normalizeSortMode,
         normalizeSettings
-    });
+    };
+
+    globalScope.LINUXDOTREE_SHARED = Object.freeze(sharedApi);
 })(typeof globalThis !== "undefined" ? globalThis : window);
