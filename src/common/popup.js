@@ -1,14 +1,9 @@
 (function () {
     "use strict";
 
-    const DEFAULT_SETTINGS = {
-        autoRedirect: true,
-        defaultSortMode: "old",
-        interceptLinks: true,
-        allowFlatView: true,
-        enableReplyFolding: true,
-        optimizeBoosts: false
-    };
+    const shared = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_SHARED) || {};
+    const DEFAULT_SETTINGS = shared.DEFAULT_SETTINGS || {};
+    const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
     const storage = chrome.storage.sync;
 
@@ -78,16 +73,6 @@
         enableReplyFoldingField.checked = Boolean(settings.enableReplyFolding);
     }
 
-    function normalizeSettings(settings) {
-        const next = { ...DEFAULT_SETTINGS, ...settings };
-        if (!next.defaultSortMode) {
-            next.defaultSortMode = next.forceOldSort ? "old" : "default";
-        }
-        delete next.forceOldSort;
-        next.optimizeBoosts = false;
-        return next;
-    }
-
     function save(patch) {
         storage.get(null, (items) => {
             const next = normalizeSettings({ ...items, ...patch });
@@ -114,17 +99,76 @@
 
         const currentVersion = (manifest.version_name || manifest.version || "").replace(/^v/, "");
 
-        function compareVersions(a, b) {
-            const pa = a.replace(/-.*$/, "").split(".").map(Number);
-            const pb = b.replace(/-.*$/, "").split(".").map(Number);
-            for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-                const diff = (pa[i] || 0) - (pb[i] || 0);
-                if (diff !== 0) return diff;
+        function parseVersion(version) {
+            const normalized = String(version || "").trim().replace(/^v/, "");
+            const [mainPart, preReleaseRaw] = normalized.split("-", 2);
+            const numbers = mainPart.split(".").map((token) => {
+                const parsed = Number.parseInt(token, 10);
+                return Number.isFinite(parsed) ? parsed : 0;
+            });
+            const preRelease = preReleaseRaw
+                ? preReleaseRaw
+                    .split(".")
+                    .map((token) => (/^\d+$/.test(token) ? Number.parseInt(token, 10) : token.toLowerCase()))
+                : [];
+
+            return { numbers, preRelease };
+        }
+
+        function comparePreRelease(a, b) {
+            if (!a.length && !b.length) {
+                return 0;
             }
-            // same numeric part: release > beta
-            const aSuffix = a.includes("-") ? 0 : 1;
-            const bSuffix = b.includes("-") ? 0 : 1;
-            return aSuffix - bSuffix;
+            if (!a.length) {
+                return 1;
+            }
+            if (!b.length) {
+                return -1;
+            }
+
+            const length = Math.max(a.length, b.length);
+            for (let index = 0; index < length; index += 1) {
+                const left = a[index];
+                const right = b[index];
+
+                if (left === undefined) {
+                    return -1;
+                }
+                if (right === undefined) {
+                    return 1;
+                }
+                if (left === right) {
+                    continue;
+                }
+
+                const leftIsNumber = typeof left === "number";
+                const rightIsNumber = typeof right === "number";
+                if (leftIsNumber && rightIsNumber) {
+                    return left - right;
+                }
+                if (leftIsNumber !== rightIsNumber) {
+                    return leftIsNumber ? -1 : 1;
+                }
+
+                return String(left).localeCompare(String(right), "en");
+            }
+
+            return 0;
+        }
+
+        function compareVersions(a, b) {
+            const left = parseVersion(a);
+            const right = parseVersion(b);
+
+            const maxLength = Math.max(left.numbers.length, right.numbers.length);
+            for (let i = 0; i < maxLength; i += 1) {
+                const diff = (left.numbers[i] || 0) - (right.numbers[i] || 0);
+                if (diff !== 0) {
+                    return diff;
+                }
+            }
+
+            return comparePreRelease(left.preRelease, right.preRelease);
         }
 
         function showBanner(latestVersion, releaseUrl) {
@@ -133,10 +177,10 @@
             banner.textContent = `⬆️ 发现新版本 ${latestVersion}，点击前往下载`;
             banner.href = releaseUrl;
             banner.hidden = false;
-            banner.addEventListener("click", (e) => {
+            banner.onclick = (e) => {
                 e.preventDefault();
                 chrome.tabs.create({ url: releaseUrl });
-            });
+            };
         }
 
         chrome.storage.local.get([CACHE_KEY], (cached) => {

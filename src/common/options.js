@@ -1,21 +1,9 @@
 (function () {
     "use strict";
 
-    const DEFAULT_SETTINGS = {
-        autoRedirect: true,
-        defaultSortMode: "old",
-        interceptLinks: true,
-        allowFlatView: true,
-        rememberModePreference: true,
-        enableFloatingToggle: true,
-        enableReplyFolding: true,
-        enableParentChainHighlight: false,
-        optimizeBoosts: false,
-        recommendBoostForShortReplies: false,
-        preferredMode: "nested",
-        categoryWhitelist: ""
-    };
-    const FORCED_DISABLED_FIELDS = ["enableParentChainHighlight", "optimizeBoosts", "recommendBoostForShortReplies"];
+    const shared = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_SHARED) || {};
+    const DEFAULT_SETTINGS = shared.DEFAULT_SETTINGS || {};
+    const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
     const storage = chrome.storage.sync;
     const form = document.getElementById("settings-form");
@@ -84,18 +72,6 @@
                 return [key, field.checked];
             })
         );
-    }
-
-    function normalizeSettings(settings) {
-        const next = { ...DEFAULT_SETTINGS, ...settings };
-        if (!next.defaultSortMode) {
-            next.defaultSortMode = next.forceOldSort ? "old" : "default";
-        }
-        delete next.forceOldSort;
-        FORCED_DISABLED_FIELDS.forEach((key) => {
-            next[key] = false;
-        });
-        return next;
     }
 
     function loadSettings() {

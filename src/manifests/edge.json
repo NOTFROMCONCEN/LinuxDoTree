@@ -20,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["*://linux.do/*"],
-      "js": ["content.js"],
+      "js": ["settings.js", "content.js"],
       "run_at": "document_start"
     }
   ],
