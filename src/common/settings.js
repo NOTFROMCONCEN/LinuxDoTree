@@ -7,8 +7,10 @@
         interceptLinks: true,
         allowFlatView: true,
         rememberModePreference: true,
-        enableFloatingToggle: true,
+        enableFloatingToggle: false,
         enableReplyFolding: true,
+        enableIndentLines: false,
+        enableGoParentButton: true,
         enableParentChainHighlight: false,
         optimizeBoosts: false,
         recommendBoostForShortReplies: false,
@@ -17,6 +19,7 @@
     };
 
     const FORCED_DISABLED_FIELDS = [
+        "enableIndentLines",
         "enableParentChainHighlight",
         "optimizeBoosts",
         "recommendBoostForShortReplies"

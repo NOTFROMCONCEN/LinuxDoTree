@@ -19,6 +19,7 @@
     const STYLE_ID = "linuxdotree-style";
     const BOOST_HELPER_ID = "linuxdotree-boost-helper";
     const FLOATING_PANEL_ID = "linuxdotree-floating-panel";
+    const FLOATING_TRIGGER_ID = "linuxdotree-floating-trigger";
 
     const extensionApi =
         typeof chrome !== "undefined"
@@ -39,6 +40,7 @@
     let titleSyncTimerId = null;
     let lastReplyContextPost = null;
     let currentPostRecords = null;
+    let isFloatingPanelExpanded = false;
 
     function isContextInvalidatedError(error) {
         const message = String(
@@ -161,8 +163,10 @@
             url.pathname = newPath;
 
             const defaultSortMode = normalizeSortMode(settings.defaultSortMode, settings.forceOldSort);
-            if (defaultSortMode !== "default" && !url.searchParams.has("sort")) {
-                url.searchParams.set("sort", defaultSortMode);
+            if (!url.searchParams.has("sort")) {
+                if (defaultSortMode !== "default") {
+                    url.searchParams.set("sort", defaultSortMode);
+                }
             }
 
             return isRelative ? url.pathname + url.search + url.hash : url.href;
@@ -361,6 +365,7 @@
         const { topicCategoryMap } = await getCategoryState();
         const cachedCategory = topicId ? topicCategoryMap[topicId] : "";
         const preferredMode = await resolveModePreference(cachedCategory);
+        const desiredSortMode = normalizeSortMode(currentSettings.defaultSortMode, currentSettings.forceOldSort);
 
         if (
             currentSettings.autoRedirect &&
@@ -372,6 +377,17 @@
             if (targetUrl !== window.location.href) {
                 window.location.replace(targetUrl);
                 return true;
+            }
+        }
+
+        if (topicId) {
+            const normalizedCurrentSort = getCurrentSortMode();
+            if (desiredSortMode !== normalizedCurrentSort) {
+                const targetUrl = setSortModeOnUrl(window.location.href, desiredSortMode);
+                if (targetUrl !== window.location.href) {
+                    window.location.replace(targetUrl);
+                    return true;
+                }
             }
         }
 
@@ -470,10 +486,10 @@
                 box-shadow: 0 0 0 2px rgba(126, 141, 166, 0.28);
             }
 
-            .linuxdotree-fold-button {
+            .linuxdotree-fold-button,
+            .linuxdotree-go-parent-btn {
                 position: absolute;
                 top: 10px;
-                right: 10px;
                 z-index: 3;
                 width: 24px;
                 height: 24px;
@@ -481,10 +497,45 @@
                 border-radius: 999px;
                 background: rgba(255, 255, 255, 0.9);
                 color: #586883;
-                font-size: 14px;
                 line-height: 1;
                 cursor: pointer;
                 box-shadow: 0 8px 20px rgba(29, 39, 57, 0.08);
+                opacity: 0;
+                transition: opacity 120ms ease;
+            }
+
+            .linuxdotree-fold-button {
+                right: 10px;
+                font-size: 14px;
+            }
+
+            .linuxdotree-go-parent-btn {
+                right: 10px;
+                font-size: 13px;
+            }
+
+            .linuxdotree-has-go-parent .linuxdotree-fold-button {
+                right: 42px;
+            }
+
+            .linuxdotree-post:hover .linuxdotree-fold-button,
+            .linuxdotree-post:hover .linuxdotree-go-parent-btn {
+                opacity: 1;
+            }
+
+            .linuxdotree-post.linuxdotree-post-collapsed .linuxdotree-fold-button {
+                opacity: 0.55;
+            }
+
+            .linuxdotree-indent-line {
+                position: absolute;
+                left: 4px;
+                top: 12px;
+                bottom: 12px;
+                width: 2px;
+                border-radius: 999px;
+                background: rgba(126, 141, 166, 0.22);
+                pointer-events: none;
             }
 
             .linuxdotree-post.linuxdotree-post-collapsed::after {
@@ -552,10 +603,79 @@
                 border-radius: 12px;
             }
 
-            #${FLOATING_PANEL_ID} {
+            .linuxdotree-post-actions {
+                display: flex !important;
+                justify-content: flex-start !important;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-left: 0 !important;
+                padding-left: 0 !important;
+            }
+
+            .linuxdotree-post-actions > * {
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            .linuxdotree-post-actions .reply,
+            .linuxdotree-post-actions [class*="reply"],
+            .linuxdotree-post-actions .toggle-like,
+            .linuxdotree-post-actions .share,
+            .linuxdotree-post-actions .link {
+                margin-left: 0 !important;
+            }
+
+            #${FLOATING_TRIGGER_ID} {
                 position: fixed;
                 left: 18px;
                 bottom: 18px;
+                z-index: 2147483640;
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                min-height: 52px;
+                padding: 10px 14px 10px 10px;
+                border: 1px solid rgba(126, 141, 166, 0.18);
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.94);
+                box-shadow: 0 18px 42px rgba(28, 38, 56, 0.14);
+                backdrop-filter: blur(18px);
+                color: #243246;
+                cursor: pointer;
+            }
+
+            #${FLOATING_TRIGGER_ID}[hidden] {
+                display: none;
+            }
+
+            #${FLOATING_TRIGGER_ID} .linuxdotree-trigger-logo {
+                width: 30px;
+                height: 30px;
+                border-radius: 999px;
+                border: 1px solid rgba(126, 141, 166, 0.2);
+                background:
+                    linear-gradient(180deg,
+                        #1f2329 0 33%,
+                        #f6f8fb 33% 66%,
+                        #f4b23c 66% 100%);
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.56);
+                flex: 0 0 auto;
+            }
+
+            #${FLOATING_TRIGGER_ID} .linuxdotree-trigger-text {
+                font-size: 12px;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                color: #5b6b84;
+                text-transform: uppercase;
+                white-space: nowrap;
+            }
+
+            #${FLOATING_PANEL_ID} {
+                position: fixed;
+                left: 18px;
+                bottom: 80px;
                 z-index: 2147483640;
                 width: 238px;
                 padding: 14px;
@@ -569,6 +689,21 @@
 
             #${FLOATING_PANEL_ID}[hidden] {
                 display: none;
+            }
+
+            #${FLOATING_PANEL_ID} .linuxdotree-floating-close {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border: 1px solid rgba(126, 141, 166, 0.16);
+                border-radius: 999px;
+                background: rgba(248, 250, 252, 0.92);
+                color: #62728c;
+                font-size: 16px;
+                cursor: pointer;
+                flex: 0 0 auto;
             }
 
             #${FLOATING_PANEL_ID} .linuxdotree-floating-head {
@@ -639,10 +774,15 @@
             }
 
             @media (max-width: 640px) {
+                #${FLOATING_TRIGGER_ID} {
+                    left: 12px;
+                    bottom: 12px;
+                }
+
                 #${FLOATING_PANEL_ID} {
                     left: 12px;
                     right: 12px;
-                    bottom: 12px;
+                    bottom: 74px;
                     width: auto;
                 }
             }
@@ -696,6 +836,21 @@
                 ".topic-post, article[data-post-id], [data-post-id].boxed, .topic-post.clearfix"
             )
         ).filter((element) => element instanceof HTMLElement);
+    }
+
+    function optimizePostActionsAlignment() {
+        const selectors = [
+            ".topic-post .actions",
+            ".topic-post .post-controls",
+            "article[data-post-id] .actions",
+            "article[data-post-id] .post-controls"
+        ];
+
+        document.querySelectorAll(selectors.join(", ")).forEach((element) => {
+            if (element instanceof HTMLElement && !element.classList.contains("linuxdotree-post-actions")) {
+                element.classList.add("linuxdotree-post-actions");
+            }
+        });
     }
 
     function getBoostContainers() {
@@ -1072,6 +1227,28 @@
         });
     }
 
+    function getFloatingTrigger() {
+        let trigger = document.getElementById(FLOATING_TRIGGER_ID);
+        if (trigger instanceof HTMLElement) {
+            return trigger;
+        }
+
+        trigger = document.createElement("button");
+        trigger.type = "button";
+        trigger.id = FLOATING_TRIGGER_ID;
+        trigger.innerHTML = `
+            <span class="linuxdotree-trigger-logo" aria-hidden="true"></span>
+            <span class="linuxdotree-trigger-text">LINUX DO</span>
+        `;
+        trigger.addEventListener("click", (event) => {
+            event.preventDefault();
+            isFloatingPanelExpanded = !isFloatingPanelExpanded;
+            renderFloatingPanel();
+        });
+        document.documentElement.appendChild(trigger);
+        return trigger;
+    }
+
     function getFloatingPanel() {
         let panel = document.getElementById(FLOATING_PANEL_ID);
         if (panel instanceof HTMLElement) {
@@ -1083,7 +1260,10 @@
         panel.innerHTML = `
             <div class="linuxdotree-floating-head">
                 <span class="linuxdotree-floating-label">linuxdotree</span>
-                <span class="linuxdotree-floating-current"></span>
+                <div class="linuxdotree-floating-head-actions">
+                    <span class="linuxdotree-floating-current"></span>
+                    <button type="button" class="linuxdotree-floating-close" data-action="close-panel" aria-label="关闭">×</button>
+                </div>
             </div>
             <div class="linuxdotree-floating-grid">
                 <button type="button" class="linuxdotree-floating-btn" data-mode="nested">树形</button>
@@ -1167,6 +1347,12 @@
                     window.setTimeout(() => {
                         actionButton.textContent = prev;
                     }, 1500);
+                    return;
+                }
+
+                if (action === "close-panel") {
+                    isFloatingPanelExpanded = false;
+                    renderFloatingPanel();
                 }
             }
         });
@@ -1194,19 +1380,37 @@
         return panel;
     }
 
+    function collapseFloatingPanelOnOutsideClick(event) {
+        if (!isFloatingPanelExpanded || !(event.target instanceof Element)) {
+            return;
+        }
+
+        const inPanel = event.target.closest(`#${FLOATING_PANEL_ID}`);
+        const inTrigger = event.target.closest(`#${FLOATING_TRIGGER_ID}`);
+        if (!inPanel && !inTrigger) {
+            isFloatingPanelExpanded = false;
+            renderFloatingPanel();
+        }
+    }
+
     function renderFloatingPanel() {
         const isTopicPage =
             window.location.pathname.startsWith("/t/") || window.location.pathname.startsWith("/nested/");
         const panel = document.getElementById(FLOATING_PANEL_ID);
+        const trigger = document.getElementById(FLOATING_TRIGGER_ID);
 
         const extensionEnabled = Boolean(currentSettings.autoRedirect || currentSettings.interceptLinks);
         if (!extensionEnabled || !currentSettings.enableFloatingToggle || !isTopicPage) {
             if (panel) {
                 panel.remove();
             }
+            if (trigger) {
+                trigger.remove();
+            }
             return;
         }
 
+        const nextTrigger = getFloatingTrigger();
         const nextPanel = getFloatingPanel();
         const mode = window.location.pathname.startsWith("/nested/") ? "nested" : "flat";
         const currentLabel = nextPanel.querySelector(".linuxdotree-floating-current");
@@ -1230,7 +1434,8 @@
             foldRow.hidden = !(mode === "nested" && currentSettings.enableReplyFolding);
         }
 
-        nextPanel.hidden = false;
+        nextTrigger.hidden = false;
+        nextPanel.hidden = !isFloatingPanelExpanded;
     }
 
     async function maybeResetScrollPosition() {
@@ -1273,17 +1478,16 @@
     }
 
     function computePostTree(posts) {
-        const records = posts.map((element, index) => {
-            const rect = element.getBoundingClientRect();
-            return {
-                element,
-                index,
-                depth: Math.round(rect.left),
-                children: [],
-                parentIndex: null,
-                hiddenCount: 0
-            };
-        });
+        const rects = posts.map((element) => element.getBoundingClientRect());
+        const records = posts.map((element, index) => ({
+            element,
+            index,
+            depth: Math.round(rects[index].left),
+            relativeDepth: 0,
+            children: [],
+            parentIndex: null,
+            hiddenCount: 0
+        }));
 
         const stack = [];
         for (const record of records) {
@@ -1294,6 +1498,7 @@
             if (stack.length) {
                 record.parentIndex = stack[stack.length - 1].index;
                 stack[stack.length - 1].children.push(record.index);
+                record.relativeDepth = records[record.parentIndex].relativeDepth + 1;
             }
 
             stack.push(record);
@@ -1345,6 +1550,8 @@
     function decoratePosts(records) {
         records.forEach((record) => {
             record.element.classList.add("linuxdotree-post");
+            record.element.dataset.linuxdotreeDepth = String(record.relativeDepth);
+
             const avatar = record.element.querySelector(
                 ".topic-avatar img, .topic-avatar .avatar, .avatar img, img.avatar, .topic-avatar"
             );
@@ -1363,6 +1570,46 @@
                     clearHighlights();
                 }
             };
+
+            // 缩进线
+            if (record.relativeDepth > 0 && currentSettings.enableIndentLines) {
+                if (!record.element.querySelector(".linuxdotree-indent-line")) {
+                    const line = document.createElement("div");
+                    line.className = "linuxdotree-indent-line";
+                    record.element.appendChild(line);
+                }
+            } else {
+                const existingLine = record.element.querySelector(".linuxdotree-indent-line");
+                if (existingLine) { existingLine.remove(); }
+            }
+
+            // 跳父楼按鈕
+            const hasParent = record.parentIndex !== null;
+            record.element.classList.toggle("linuxdotree-has-go-parent", hasParent && currentSettings.enableGoParentButton);
+            let goParentBtn = record.element.querySelector(".linuxdotree-go-parent-btn");
+            if (hasParent && currentSettings.enableGoParentButton) {
+                if (!goParentBtn) {
+                    goParentBtn = document.createElement("button");
+                    goParentBtn.type = "button";
+                    goParentBtn.className = "linuxdotree-go-parent-btn";
+                    goParentBtn.textContent = "↩";
+                    goParentBtn.title = "跳转到父楼";
+                    record.element.appendChild(goParentBtn);
+                }
+                goParentBtn.onclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const parentRecord = records[record.parentIndex];
+                    if (!parentRecord) { return; }
+                    parentRecord.element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    parentRecord.element.classList.add("linuxdotree-post-highlight");
+                    window.setTimeout(() => {
+                        parentRecord.element.classList.remove("linuxdotree-post-highlight");
+                    }, 1500);
+                };
+            } else if (goParentBtn) {
+                goParentBtn.remove();
+            }
 
             let button = record.element.querySelector(".linuxdotree-fold-button");
             if (!record.children.length || !currentSettings.enableReplyFolding) {
@@ -1411,9 +1658,9 @@
             });
         } else {
             currentPostRecords.forEach((record) => {
-                if (record.children.length > 0) {
-                    hideBranch(currentPostRecords, record.index, false);
-                }
+                record.element.classList.remove("linuxdotree-hidden-branch", "linuxdotree-post-collapsed");
+                record.hiddenCount = 0;
+                record.element.dataset.linuxdotreeHiddenCount = "0";
             });
         }
 
@@ -1479,6 +1726,7 @@
         }
 
         ensureBaseStyles();
+        optimizePostActionsAlignment();
         renderFloatingPanel();
         scheduleThreadEnhancements();
         decorateBoosts();
@@ -1559,6 +1807,7 @@
     }
 
     installRouteWatcher();
+    document.addEventListener("click", collapseFloatingPanelOnOutsideClick, true);
 
     if (syncStorage && extensionApi.storage && extensionApi.storage.onChanged) {
         extensionApi.storage.onChanged.addListener(handleStorageChange);

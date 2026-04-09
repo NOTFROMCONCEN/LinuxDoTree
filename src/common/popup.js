@@ -2,14 +2,17 @@
     "use strict";
 
     const shared = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_SHARED) || {};
-    const DEFAULT_SETTINGS = {
-        ...(shared.DEFAULT_SETTINGS || {}),
-        enableReplyFolding: true,
-        optimizeBoosts: false
-    };
+    const DEFAULT_SETTINGS = shared.DEFAULT_SETTINGS || {};
     const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
-    const storage = chrome.storage.sync;
+    const extensionApi =
+        typeof chrome !== "undefined"
+            ? chrome
+            : typeof browser !== "undefined"
+                ? browser
+                : null;
+
+    const storage = extensionApi.storage.sync;
 
     const enabledField = document.getElementById("enabled");
     const autoRedirectField = document.getElementById("autoRedirect");
@@ -37,14 +40,14 @@
     }
 
     function syncActiveTabAfterToggle(enabled) {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        extensionApi.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const activeTab = tabs && tabs[0];
             if (!activeTab || !activeTab.url) {
                 return;
             }
 
             if (!enabled && /^https?:\/\/linux\.do\/nested\//.test(activeTab.url)) {
-                chrome.tabs.update(activeTab.id, { url: getFlatUrl(activeTab.url) });
+                extensionApi.tabs.update(activeTab.id, { url: getFlatUrl(activeTab.url) });
             }
         });
     }
@@ -90,7 +93,7 @@
         });
     }
 
-    const manifest = chrome.runtime.getManifest();
+    const manifest = extensionApi.runtime.getManifest();
     const versionEl = document.getElementById("version");
     if (versionEl) {
         versionEl.textContent = manifest.version_name || manifest.version || "";
@@ -183,11 +186,11 @@
             banner.hidden = false;
             banner.onclick = (e) => {
                 e.preventDefault();
-                chrome.tabs.create({ url: releaseUrl });
+                extensionApi.tabs.create({ url: releaseUrl });
             };
         }
 
-        chrome.storage.local.get([CACHE_KEY], (cached) => {
+        extensionApi.storage.local.get([CACHE_KEY], (cached) => {
             const now = Date.now();
             const entry = cached[CACHE_KEY];
             if (entry && now - entry.fetchedAt < CACHE_TTL) {
@@ -204,7 +207,7 @@
                 .then((data) => {
                     const latestVersion = (data.tag_name || "").replace(/^v/, "");
                     const releaseUrl = data.html_url || `https://github.com/${REPO}/releases/latest`;
-                    chrome.storage.local.set({
+                    extensionApi.storage.local.set({
                         [CACHE_KEY]: { latestVersion, releaseUrl, fetchedAt: now }
                     });
                     if (compareVersions(latestVersion, currentVersion) > 0) {
@@ -245,10 +248,10 @@
     });
 
     openOptionsButton.addEventListener("click", () => {
-        chrome.runtime.openOptionsPage();
+        extensionApi.runtime.openOptionsPage();
     });
 
     openSiteButton.addEventListener("click", () => {
-        chrome.tabs.create({ url: "https://linux.do" });
+        extensionApi.tabs.create({ url: "https://linux.do" });
     });
 })();

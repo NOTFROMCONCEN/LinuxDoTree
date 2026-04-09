@@ -5,7 +5,14 @@
     const DEFAULT_SETTINGS = shared.DEFAULT_SETTINGS || {};
     const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
-    const storage = chrome.storage.sync;
+    const extensionApi =
+        typeof chrome !== "undefined"
+            ? chrome
+            : typeof browser !== "undefined"
+                ? browser
+                : null;
+
+    const storage = extensionApi.storage.sync;
     const form = document.getElementById("settings-form");
     const status = document.getElementById("status");
     const resetButton = document.getElementById("reset");
@@ -19,6 +26,8 @@
         enableFloatingToggle: document.getElementById("enableFloatingToggle"),
         enableFloatingWidgetPlaceholder: document.getElementById("enableFloatingWidgetPlaceholder"),
         enableReplyFolding: document.getElementById("enableReplyFolding"),
+        enableIndentLines: document.getElementById("enableIndentLines"),
+        enableGoParentButton: document.getElementById("enableGoParentButton"),
         enableParentChainHighlight: document.getElementById("enableParentChainHighlight"),
         optimizeBoosts: document.getElementById("optimizeBoosts"),
         recommendBoostForShortReplies: document.getElementById("recommendBoostForShortReplies"),
@@ -100,7 +109,7 @@
 
     const versionEl = document.getElementById("version");
     if (versionEl) {
-        const manifest = chrome.runtime.getManifest();
+        const manifest = extensionApi.runtime.getManifest();
         versionEl.textContent = "v" + (manifest.version_name || manifest.version || "");
     }
 
