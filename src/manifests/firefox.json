@@ -29,6 +29,7 @@
         "*://linux.do/*"
       ],
       "js": [
+        "settings.js",
         "content.js"
       ],
       "run_at": "document_start"

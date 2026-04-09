@@ -1,14 +1,13 @@
 (function () {
     "use strict";
 
+    const shared = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_SHARED) || {};
     const DEFAULT_SETTINGS = {
-        autoRedirect: true,
-        defaultSortMode: "old",
-        interceptLinks: true,
-        allowFlatView: true,
+        ...(shared.DEFAULT_SETTINGS || {}),
         enableReplyFolding: true,
         optimizeBoosts: false
     };
+    const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
     const storage = chrome.storage.sync;
 
@@ -78,19 +77,9 @@
         enableReplyFoldingField.checked = Boolean(settings.enableReplyFolding);
     }
 
-    function normalizeSettings(settings) {
-        const next = { ...DEFAULT_SETTINGS, ...settings };
-        if (!next.defaultSortMode) {
-            next.defaultSortMode = next.forceOldSort ? "old" : "default";
-        }
-        delete next.forceOldSort;
-        next.optimizeBoosts = false;
-        return next;
-    }
-
     function save(patch) {
         storage.get(null, (items) => {
-            const next = normalizeSettings({ ...items, ...patch });
+            const next = normalizeSettings({ ...items, ...patch, optimizeBoosts: false });
             storage.set(next, () => {
                 render(next);
                 setStatus("已保存");
@@ -170,7 +159,7 @@
     checkForUpdate();
 
     storage.get(null, (items) => {
-        const next = normalizeSettings(items);
+        const next = normalizeSettings({ ...items, optimizeBoosts: false });
         storage.set(next, () => {
             render(next);
         });
