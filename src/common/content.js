@@ -38,6 +38,7 @@
     let scrollResetTimerId = null;
     let lastHandledTopicKey = "";
     let titleSyncTimerId = null;
+    let isSyncingTitle = false;
     let lastReplyContextPost = null;
     let currentPostRecords = null;
     let isFloatingPanelExpanded = false;
@@ -329,7 +330,9 @@
 
             const nextTitle = `${topicTitle} - LINUX DO`;
             if (document.title !== nextTitle) {
+                isSyncingTitle = true;
                 document.title = nextTitle;
+                isSyncingTitle = false;
             }
         }, 80);
     }
@@ -1942,14 +1945,34 @@
         }).observe(target, { childList: true, subtree: true });
     }
 
+    function setupTitleObserver() {
+        const titleElement = document.querySelector("title");
+        if (!titleElement) {
+            return;
+        }
+
+        new MutationObserver(() => {
+            if (isSyncingTitle) {
+                return;
+            }
+            const path = window.location.pathname;
+            if (!path.startsWith("/t/") && !path.startsWith("/n/")) {
+                return;
+            }
+            syncDocumentTitle();
+        }).observe(titleElement, { childList: true, characterData: true, subtree: true });
+    }
+
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", () => {
             void refreshPageFeatures();
             setupMutationObserver();
+            setupTitleObserver();
         });
     } else {
         void refreshPageFeatures();
         setupMutationObserver();
+        setupTitleObserver();
     }
 })().catch((error) => {
     const message = String(
