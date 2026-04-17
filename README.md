@@ -110,6 +110,35 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 同时保留 `version_name` 显示原始 beta 标识。
 
+## 一键发布（命令行）
+
+新增脚本：`scripts/Publish-Release.ps1`，用于一条命令完成：
+
+- 拉取最新 `main`（`ff-only`）
+- 构建三个浏览器发行包
+- 创建并推送 tag
+- 创建 GitHub Release 并上传 zip 资产
+
+使用示例：
+
+```powershell
+.\scripts\Publish-Release.ps1 -Version 1.2.4-beta.18 -PreRelease
+```
+
+常用参数：
+
+- `-Branch main`：发布分支（默认 `main`）
+- `-Remote origin`：远端名（默认 `origin`）
+- `-PreRelease`：发布为预发布版本
+- `-Draft`：先创建草稿 release
+- `-NotesFile .\release-notes.md`：使用自定义发行说明
+
+前置条件：
+
+- 工作区必须是干净状态（无未提交改动）
+- 当前分支必须是目标发布分支（默认 `main`）
+- 已登录 GitHub CLI：`gh auth login`
+
 ## 可配置项
 
 在扩展选项页中可以控制：
