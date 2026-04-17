@@ -29,10 +29,10 @@
             if (!/^(?:www\.)?linux\.do$/i.test(url.hostname)) {
                 return originalUrl;
             }
-            if (!url.pathname.startsWith("/nested/")) {
+            if (!url.pathname.startsWith("/n/")) {
                 return originalUrl;
             }
-            url.pathname = url.pathname.replace(/^\/nested\//, "/t/");
+            url.pathname = url.pathname.replace(/^\/n\//, "/t/");
             return url.href;
         } catch (error) {
             return originalUrl;
@@ -46,7 +46,7 @@
                 return;
             }
 
-            if (!enabled && /^https?:\/\/linux\.do\/nested\//.test(activeTab.url)) {
+            if (!enabled && /^https?:\/\/linux\.do\/n\//.test(activeTab.url)) {
                 extensionApi.tabs.update(activeTab.id, { url: getFlatUrl(activeTab.url) });
             }
         });
