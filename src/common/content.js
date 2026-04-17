@@ -128,8 +128,12 @@
             .filter(Boolean);
     }
 
+    function isTreePath(pathname) {
+        return pathname.startsWith("/n/") || pathname.startsWith("/nested/");
+    }
+
     function getTopicIdFromPath(pathname) {
-        const match = pathname.match(/\/(?:t|nested)\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
+        const match = pathname.match(/\/(?:t|n|nested)\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
         return match ? match[1] : null;
     }
 
@@ -143,30 +147,32 @@
             const baseUrl = isRelative ? window.location.origin : undefined;
             const url = new URL(originalUrl, baseUrl);
 
-            if (!isLinuxDoUrl(url) || !url.pathname.startsWith("/t/")) {
+            if (!isLinuxDoUrl(url)) {
                 return originalUrl;
             }
 
             let newPath = url.pathname;
 
-            if (/^\/t\/[^/]+\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
+            if (/^\/(?:t|n|nested)\/[^/]+\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
                 newPath = newPath.replace(
-                    /^\/t\/([^/]+)\/(\d+)(?:\/\d+)?\/?$/,
-                    "/nested/$1/$2"
+                    /^\/(?:t|n|nested)\/([^/]+)\/(\d+)(?:\/\d+)?\/?$/,
+                    "/n/$1/$2"
                 );
-            } else if (/^\/t\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
-                newPath = newPath.replace(/^\/t\/(\d+)(?:\/\d+)?\/?$/, "/nested/$1");
-            } else {
-                newPath = newPath.replace(/^\/t\//, "/nested/");
+            } else if (/^\/(?:t|n|nested)\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
+                newPath = newPath.replace(/^\/(?:t|n|nested)\/(\d+)(?:\/\d+)?\/?$/, "/n/$1");
+            } else if (/^\/(?:t|n|nested)\//.test(newPath)) {
+                newPath = newPath.replace(/^\/(?:t|n|nested)\//, "/n/");
+            } else if (!newPath.startsWith("/n/")) {
+                return originalUrl;
             }
 
             url.pathname = newPath;
 
             const defaultSortMode = normalizeSortMode(settings.defaultSortMode, settings.forceOldSort);
-            if (!url.searchParams.has("sort")) {
-                if (defaultSortMode !== "default") {
-                    url.searchParams.set("sort", defaultSortMode);
-                }
+            if (defaultSortMode === "default") {
+                url.searchParams.delete("sort");
+            } else {
+                url.searchParams.set("sort", defaultSortMode);
             }
 
             return isRelative ? url.pathname + url.search + url.hash : url.href;
@@ -182,11 +188,11 @@
             const baseUrl = isRelative ? window.location.origin : undefined;
             const url = new URL(originalUrl, baseUrl);
 
-            if (!isLinuxDoUrl(url) || !url.pathname.startsWith("/nested/")) {
+            if (!isLinuxDoUrl(url) || (!url.pathname.startsWith("/n/") && !url.pathname.startsWith("/nested/"))) {
                 return originalUrl;
             }
 
-            url.pathname = url.pathname.replace(/^\/nested\//, "/t/");
+            url.pathname = url.pathname.replace(/^\/(?:n|nested)\//, "/t/");
             return isRelative ? url.pathname + url.search + url.hash : url.href;
         } catch (error) {
             console.error("linuxdotree flat URL parse error:", error);
@@ -232,7 +238,7 @@
     }
 
     function isTopicLink(href) {
-        return /^\/t\//.test(href) || /^https?:\/\/linux\.do\/t\//.test(href);
+        return /^\/(?:t|n|nested)\//.test(href) || /^https?:\/\/(?:www\.)?linux\.do\/(?:t|n|nested)\//.test(href);
     }
 
     async function getCategoryState() {
@@ -366,6 +372,15 @@
         const cachedCategory = topicId ? topicCategoryMap[topicId] : "";
         const preferredMode = await resolveModePreference(cachedCategory);
         const desiredSortMode = normalizeSortMode(currentSettings.defaultSortMode, currentSettings.forceOldSort);
+        const extensionEnabled = Boolean(currentSettings.autoRedirect || currentSettings.interceptLinks);
+
+        if (extensionEnabled && window.location.pathname.startsWith("/nested/")) {
+            const canonicalTreeUrl = getNestedUrl(window.location.href, currentSettings);
+            if (canonicalTreeUrl !== window.location.href) {
+                window.location.replace(canonicalTreeUrl);
+                return true;
+            }
+        }
 
         if (
             currentSettings.autoRedirect &&
@@ -394,7 +409,7 @@
         if (
             currentSettings.rememberModePreference &&
             preferredMode === "flat" &&
-            window.location.pathname.startsWith("/nested/")
+            isTreePath(window.location.pathname)
         ) {
             const targetUrl = getFlatUrl(window.location.href);
             if (targetUrl !== window.location.href) {
@@ -1208,7 +1223,7 @@
             return "";
         }
 
-        const mode = window.location.pathname.startsWith("/nested/") ? "nested" : "flat";
+        const mode = isTreePath(window.location.pathname) ? "nested" : "flat";
         return `${mode}:${topicId}`;
     }
 
@@ -1309,12 +1324,12 @@
                     return;
                 }
 
-                if (nextMode === "nested" && window.location.pathname.startsWith("/nested/")) {
+                if (nextMode === "nested" && isTreePath(window.location.pathname)) {
                     renderFloatingPanel();
                     return;
                 }
 
-                if (nextMode === "flat" && window.location.pathname.startsWith("/nested/")) {
+                if (nextMode === "flat" && isTreePath(window.location.pathname)) {
                     window.location.replace(getFlatUrl(window.location.href));
                     return;
                 }
@@ -1394,8 +1409,7 @@
     }
 
     function renderFloatingPanel() {
-        const isTopicPage =
-            window.location.pathname.startsWith("/t/") || window.location.pathname.startsWith("/nested/");
+        const isTopicPage = window.location.pathname.startsWith("/t/") || isTreePath(window.location.pathname);
         const panel = document.getElementById(FLOATING_PANEL_ID);
         const trigger = document.getElementById(FLOATING_TRIGGER_ID);
 
@@ -1412,7 +1426,7 @@
 
         const nextTrigger = getFloatingTrigger();
         const nextPanel = getFloatingPanel();
-        const mode = window.location.pathname.startsWith("/nested/") ? "nested" : "flat";
+        const mode = isTreePath(window.location.pathname) ? "nested" : "flat";
         const currentLabel = nextPanel.querySelector(".linuxdotree-floating-current");
         const sortSelect = nextPanel.querySelector("[data-role='sort-select']");
 
@@ -1439,7 +1453,7 @@
     }
 
     async function maybeResetScrollPosition() {
-        if (!window.location.pathname.startsWith("/nested/")) {
+        if (!isTreePath(window.location.pathname)) {
             return;
         }
 
@@ -1691,7 +1705,7 @@
 
     function scheduleThreadEnhancements() {
         const shouldEnhance =
-            window.location.pathname.startsWith("/nested/") &&
+            isTreePath(window.location.pathname) &&
             (currentSettings.enableReplyFolding || currentSettings.enableParentChainHighlight);
 
         if (!shouldEnhance) {
@@ -1755,7 +1769,7 @@
         });
 
         const enabled = Boolean(currentSettings.autoRedirect || currentSettings.interceptLinks);
-        if (!enabled && window.location.pathname.startsWith("/nested/")) {
+        if (!enabled && isTreePath(window.location.pathname)) {
             window.location.replace(getFlatUrl(window.location.href));
             return;
         }
