@@ -38,6 +38,7 @@
     let scrollResetTimerId = null;
     let lastHandledTopicKey = "";
     let titleSyncTimerId = null;
+    let isSyncingTitle = false;
     let lastReplyContextPost = null;
     let currentPostRecords = null;
     let isFloatingPanelExpanded = false;
@@ -129,7 +130,7 @@
     }
 
     function getTopicIdFromPath(pathname) {
-        const match = pathname.match(/\/(?:t|nested)\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
+        const match = pathname.match(/\/(?:t|n)\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
         return match ? match[1] : null;
     }
 
@@ -152,12 +153,12 @@
             if (/^\/t\/[^/]+\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
                 newPath = newPath.replace(
                     /^\/t\/([^/]+)\/(\d+)(?:\/\d+)?\/?$/,
-                    "/nested/$1/$2"
+                    "/n/$1/$2"
                 );
             } else if (/^\/t\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
-                newPath = newPath.replace(/^\/t\/(\d+)(?:\/\d+)?\/?$/, "/nested/$1");
+                newPath = newPath.replace(/^\/t\/(\d+)(?:\/\d+)?\/?$/, "/n/$1");
             } else {
-                newPath = newPath.replace(/^\/t\//, "/nested/");
+                newPath = newPath.replace(/^\/t\//, "/n/");
             }
 
             url.pathname = newPath;
@@ -182,11 +183,11 @@
             const baseUrl = isRelative ? window.location.origin : undefined;
             const url = new URL(originalUrl, baseUrl);
 
-            if (!isLinuxDoUrl(url) || !url.pathname.startsWith("/nested/")) {
+            if (!isLinuxDoUrl(url) || !url.pathname.startsWith("/n/")) {
                 return originalUrl;
             }
 
-            url.pathname = url.pathname.replace(/^\/nested\//, "/t/");
+            url.pathname = url.pathname.replace(/^\/n\//, "/t/");
             return isRelative ? url.pathname + url.search + url.hash : url.href;
         } catch (error) {
             console.error("linuxdotree flat URL parse error:", error);
@@ -329,7 +330,9 @@
 
             const nextTitle = `${topicTitle} - LINUX DO`;
             if (document.title !== nextTitle) {
+                isSyncingTitle = true;
                 document.title = nextTitle;
+                isSyncingTitle = false;
             }
         }, 80);
     }
@@ -394,7 +397,7 @@
         if (
             currentSettings.rememberModePreference &&
             preferredMode === "flat" &&
-            window.location.pathname.startsWith("/nested/")
+            window.location.pathname.startsWith("/n/")
         ) {
             const targetUrl = getFlatUrl(window.location.href);
             if (targetUrl !== window.location.href) {
@@ -1208,7 +1211,7 @@
             return "";
         }
 
-        const mode = window.location.pathname.startsWith("/nested/") ? "nested" : "flat";
+        const mode = window.location.pathname.startsWith("/n/") ? "nested" : "flat";
         return `${mode}:${topicId}`;
     }
 
@@ -1309,12 +1312,12 @@
                     return;
                 }
 
-                if (nextMode === "nested" && window.location.pathname.startsWith("/nested/")) {
+                if (nextMode === "nested" && window.location.pathname.startsWith("/n/")) {
                     renderFloatingPanel();
                     return;
                 }
 
-                if (nextMode === "flat" && window.location.pathname.startsWith("/nested/")) {
+                if (nextMode === "flat" && window.location.pathname.startsWith("/n/")) {
                     window.location.replace(getFlatUrl(window.location.href));
                     return;
                 }
@@ -1395,7 +1398,7 @@
 
     function renderFloatingPanel() {
         const isTopicPage =
-            window.location.pathname.startsWith("/t/") || window.location.pathname.startsWith("/nested/");
+            window.location.pathname.startsWith("/t/") || window.location.pathname.startsWith("/n/");
         const panel = document.getElementById(FLOATING_PANEL_ID);
         const trigger = document.getElementById(FLOATING_TRIGGER_ID);
 
@@ -1412,7 +1415,7 @@
 
         const nextTrigger = getFloatingTrigger();
         const nextPanel = getFloatingPanel();
-        const mode = window.location.pathname.startsWith("/nested/") ? "nested" : "flat";
+        const mode = window.location.pathname.startsWith("/n/") ? "nested" : "flat";
         const currentLabel = nextPanel.querySelector(".linuxdotree-floating-current");
         const sortSelect = nextPanel.querySelector("[data-role='sort-select']");
 
@@ -1439,7 +1442,7 @@
     }
 
     async function maybeResetScrollPosition() {
-        if (!window.location.pathname.startsWith("/nested/")) {
+        if (!window.location.pathname.startsWith("/n/")) {
             return;
         }
 
@@ -1691,7 +1694,7 @@
 
     function scheduleThreadEnhancements() {
         const shouldEnhance =
-            window.location.pathname.startsWith("/nested/") &&
+            window.location.pathname.startsWith("/n/") &&
             (currentSettings.enableReplyFolding || currentSettings.enableParentChainHighlight);
 
         if (!shouldEnhance) {
@@ -1755,7 +1758,7 @@
         });
 
         const enabled = Boolean(currentSettings.autoRedirect || currentSettings.interceptLinks);
-        if (!enabled && window.location.pathname.startsWith("/nested/")) {
+        if (!enabled && window.location.pathname.startsWith("/n/")) {
             window.location.replace(getFlatUrl(window.location.href));
             return;
         }
@@ -1942,14 +1945,34 @@
         }).observe(target, { childList: true, subtree: true });
     }
 
+    function setupTitleObserver() {
+        const titleElement = document.querySelector("title");
+        if (!titleElement) {
+            return;
+        }
+
+        new MutationObserver(() => {
+            if (isSyncingTitle) {
+                return;
+            }
+            const path = window.location.pathname;
+            if (!path.startsWith("/t/") && !path.startsWith("/n/")) {
+                return;
+            }
+            syncDocumentTitle();
+        }).observe(titleElement, { childList: true, characterData: true, subtree: true });
+    }
+
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", () => {
             void refreshPageFeatures();
             setupMutationObserver();
+            setupTitleObserver();
         });
     } else {
         void refreshPageFeatures();
         setupMutationObserver();
+        setupTitleObserver();
     }
 })().catch((error) => {
     const message = String(

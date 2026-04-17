@@ -1,6 +1,6 @@
 # linuxdotree — Project Guidelines
 
-跨浏览器扩展，将 `linux.do` 帖子页自动切换到树形评论视图（`/t/` → `/nested/`）。
+跨浏览器扩展，将 `linux.do` 帖子页自动切换到树形评论视图（`/t/` → `/n/`）。
 
 ## 构建与运行
 
