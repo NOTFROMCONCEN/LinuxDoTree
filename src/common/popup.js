@@ -2,6 +2,7 @@
     "use strict";
 
     const shared = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_SHARED) || {};
+    const routing = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_ROUTING) || {};
     const DEFAULT_SETTINGS = shared.DEFAULT_SETTINGS || {};
     const normalizeSettings = shared.normalizeSettings || ((settings) => ({ ...DEFAULT_SETTINGS, ...settings }));
 
@@ -18,26 +19,13 @@
     const autoRedirectField = document.getElementById("autoRedirect");
     const defaultSortModeField = document.getElementById("defaultSortMode");
     const allowFlatViewField = document.getElementById("allowFlatView");
+    const forceNestedPriorityField = document.getElementById("forceNestedPriority");
     const enableReplyFoldingField = document.getElementById("enableReplyFolding");
     const openOptionsButton = document.getElementById("openOptions");
     const openSiteButton = document.getElementById("openSite");
     const status = document.getElementById("status");
 
-    function getFlatUrl(originalUrl) {
-        try {
-            const url = new URL(originalUrl);
-            if (!/^(?:www\.)?linux\.do$/i.test(url.hostname)) {
-                return originalUrl;
-            }
-            if (!url.pathname.startsWith("/n/") && !url.pathname.startsWith("/nested/")) {
-                return originalUrl;
-            }
-            url.pathname = url.pathname.replace(/^\/(?:n|nested)\//, "/t/");
-            return url.href;
-        } catch (error) {
-            return originalUrl;
-        }
-    }
+    const getFlatUrl = routing.getFlatUrl || ((originalUrl) => originalUrl);
 
     function syncActiveTabAfterToggle(enabled) {
         extensionApi.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -77,6 +65,7 @@
         autoRedirectField.checked = Boolean(settings.autoRedirect);
         defaultSortModeField.value = settings.defaultSortMode || "old";
         allowFlatViewField.checked = Boolean(settings.allowFlatView);
+        forceNestedPriorityField.checked = Boolean(settings.forceNestedPriority);
         enableReplyFoldingField.checked = Boolean(settings.enableReplyFolding);
     }
 
@@ -237,6 +226,10 @@
 
     allowFlatViewField.addEventListener("change", () => {
         save({ allowFlatView: allowFlatViewField.checked });
+    });
+
+    forceNestedPriorityField.addEventListener("change", () => {
+        save({ forceNestedPriority: forceNestedPriorityField.checked });
     });
 
     autoRedirectField.addEventListener("change", () => {

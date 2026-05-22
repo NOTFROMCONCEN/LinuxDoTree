@@ -128,96 +128,17 @@
             .filter(Boolean);
     }
 
-    function isTreePath(pathname) {
-        return pathname.startsWith("/n/") || pathname.startsWith("/nested/");
-    }
-
-    function getTopicIdFromPath(pathname) {
-        const match = pathname.match(/\/(?:t|n|nested)\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
-        return match ? match[1] : null;
-    }
-
-    function isLinuxDoUrl(url) {
-        return /^(?:www\.)?linux\.do$/i.test(url.hostname);
-    }
-
-    function getNestedUrl(originalUrl, settings) {
-        try {
-            const isRelative = originalUrl.startsWith("/");
-            const baseUrl = isRelative ? window.location.origin : undefined;
-            const url = new URL(originalUrl, baseUrl);
-
-            if (!isLinuxDoUrl(url)) {
-                return originalUrl;
-            }
-
-            let newPath = url.pathname;
-
-            if (/^\/(?:t|n|nested)\/[^/]+\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
-                newPath = newPath.replace(
-                    /^\/(?:t|n|nested)\/([^/]+)\/(\d+)(?:\/\d+)?\/?$/,
-                    "/n/$1/$2"
-                );
-            } else if (/^\/(?:t|n|nested)\/\d+(?:\/\d+)?\/?$/.test(newPath)) {
-                newPath = newPath.replace(/^\/(?:t|n|nested)\/(\d+)(?:\/\d+)?\/?$/, "/n/$1");
-            } else if (/^\/(?:t|n|nested)\//.test(newPath)) {
-                newPath = newPath.replace(/^\/(?:t|n|nested)\//, "/n/");
-            } else if (!newPath.startsWith("/n/")) {
-                return originalUrl;
-            }
-
-            url.pathname = newPath;
-
-            const defaultSortMode = normalizeSortMode(settings.defaultSortMode, settings.forceOldSort);
-            if (defaultSortMode === "default") {
-                url.searchParams.delete("sort");
-            } else {
-                url.searchParams.set("sort", defaultSortMode);
-            }
-
-            return isRelative ? url.pathname + url.search + url.hash : url.href;
-        } catch (error) {
-            console.error("linuxdotree URL parse error:", error);
-            return originalUrl;
-        }
-    }
-
-    function getFlatUrl(originalUrl) {
-        try {
-            const isRelative = originalUrl.startsWith("/");
-            const baseUrl = isRelative ? window.location.origin : undefined;
-            const url = new URL(originalUrl, baseUrl);
-
-            if (!isLinuxDoUrl(url) || (!url.pathname.startsWith("/n/") && !url.pathname.startsWith("/nested/"))) {
-                return originalUrl;
-            }
-
-            url.pathname = url.pathname.replace(/^\/(?:n|nested)\//, "/t/");
-            return isRelative ? url.pathname + url.search + url.hash : url.href;
-        } catch (error) {
-            console.error("linuxdotree flat URL parse error:", error);
-            return originalUrl;
-        }
-    }
-
-    function setSortModeOnUrl(originalUrl, sortMode) {
-        try {
-            const isRelative = originalUrl.startsWith("/");
-            const baseUrl = isRelative ? window.location.origin : undefined;
-            const url = new URL(originalUrl, baseUrl);
-            const normalized = normalizeSortMode(sortMode, false);
-
-            if (normalized === "default") {
-                url.searchParams.delete("sort");
-            } else {
-                url.searchParams.set("sort", normalized);
-            }
-
-            return isRelative ? url.pathname + url.search + url.hash : url.href;
-        } catch (error) {
-            return originalUrl;
-        }
-    }
+    const routing = (typeof globalThis !== "undefined" && globalThis.LINUXDOTREE_ROUTING) || {};
+    const isTreePath = routing.isTreePath || ((pathname) => String(pathname || "").startsWith("/n/"));
+    const getTopicIdFromPath =
+        routing.getTopicIdFromPath ||
+        ((pathname) => {
+            const match = String(pathname || "").match(/\/(?:t|n|nested)\/(?:[^/]+\/)?(\d+)(?:\/\d+)?\/?$/);
+            return match ? match[1] : null;
+        });
+    const getNestedUrl = routing.getNestedUrl || ((originalUrl) => originalUrl);
+    const getFlatUrl = routing.getFlatUrl || ((originalUrl) => originalUrl);
+    const setSortModeOnUrl = routing.setSortModeOnUrl || ((originalUrl) => originalUrl);
 
     function getCurrentSortMode() {
         try {
@@ -237,9 +158,9 @@
         return text.includes("view as flat");
     }
 
-    function isTopicLink(href) {
-        return /^\/(?:t|n|nested)\//.test(href) || /^https?:\/\/(?:www\.)?linux\.do\/(?:t|n|nested)\//.test(href);
-    }
+    const isTopicLink =
+        routing.isTopicLink ||
+        ((href) => /^\/(?:t|n|nested)\//.test(String(href || "")));
 
     async function getCategoryState() {
         const values = await getStorage(localStorageArea, {
@@ -354,6 +275,10 @@
     }
 
     async function resolveModePreference(category) {
+        if (currentSettings.forceNestedPriority) {
+            return "nested";
+        }
+
         if (!currentSettings.rememberModePreference) {
             return "nested";
         }
@@ -416,6 +341,31 @@
                 window.location.replace(targetUrl);
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    async function maybeRedirectWithLiveCategory() {
+        if (!currentSettings.autoRedirect || !window.location.pathname.startsWith("/t/")) {
+            return false;
+        }
+
+        const category = detectCurrentCategory();
+        if (!category) {
+            return false;
+        }
+
+        await saveCategoryForCurrentTopic(category);
+        const preferredMode = await resolveModePreference(category);
+        if (preferredMode !== "nested" || !isCategoryAllowed(currentSettings, category)) {
+            return false;
+        }
+
+        const targetUrl = getNestedUrl(window.location.href, currentSettings);
+        if (targetUrl !== window.location.href) {
+            window.location.replace(targetUrl);
+            return true;
         }
 
         return false;
@@ -1734,6 +1684,10 @@
     }
 
     async function refreshPageFeatures() {
+        if (await maybeRedirectWithLiveCategory()) {
+            return;
+        }
+
         const category = detectCurrentCategory();
         if (category) {
             await saveCategoryForCurrentTopic(category);

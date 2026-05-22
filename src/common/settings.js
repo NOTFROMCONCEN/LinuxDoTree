@@ -1,12 +1,16 @@
 (function (globalScope) {
     "use strict";
 
+    const SETTINGS_SCHEMA_VERSION = 2;
+
     const DEFAULT_SETTINGS = {
+        settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
         autoRedirect: true,
         defaultSortMode: "old",
         interceptLinks: true,
         allowFlatView: true,
         rememberModePreference: true,
+        forceNestedPriority: true,
         enableFloatingToggle: false,
         enableReplyFolding: true,
         enableIndentLines: false,
@@ -34,9 +38,19 @@
     }
 
     function normalizeSettings(settings) {
-        const next = { ...DEFAULT_SETTINGS, ...(settings || {}) };
+        const incoming = settings || {};
+        const next = { ...DEFAULT_SETTINGS, ...incoming };
+
+        const rawVersion = Number.parseInt(incoming.settingsSchemaVersion, 10);
+        const previousVersion = Number.isFinite(rawVersion) ? rawVersion : 0;
+
         next.defaultSortMode = normalizeSortMode(next.defaultSortMode, next.forceOldSort);
         delete next.forceOldSort;
+        next.settingsSchemaVersion = SETTINGS_SCHEMA_VERSION;
+
+        if (previousVersion < 2 && typeof incoming.forceNestedPriority === "undefined") {
+            next.forceNestedPriority = true;
+        }
 
         FORCED_DISABLED_FIELDS.forEach((key) => {
             next[key] = false;
@@ -46,6 +60,7 @@
     }
 
     const sharedApi = {
+        SETTINGS_SCHEMA_VERSION,
         DEFAULT_SETTINGS: Object.freeze({ ...DEFAULT_SETTINGS }),
         FORCED_DISABLED_FIELDS: Object.freeze([...FORCED_DISABLED_FIELDS]),
         normalizeSortMode,

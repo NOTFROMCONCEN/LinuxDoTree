@@ -11,33 +11,55 @@
 <body>
     <main class="popup">
         <header class="hero">
-            <div class="hero-copy">
-                <p class="eyebrow">linuxdotree &nbsp;<span id="version" class="version-badge"></span></p>
-                <h1>树形评论</h1>
-                <p class="subtitle">让 Linux.do 帖子默认进入更清晰的对话结构。</p>
+            <div class="brand-block">
+                <p class="eyebrow">linuxdotree</p>
+                <h1 class="title-grid"><span>树形</span><span>评论</span></h1>
+                <p class="subtitle">更快进入树形视图，减少来回切换。</p>
+                <div class="meta-row">
+                    <span class="version-chip">v<span id="version"></span></span>
+                    <span class="mode-chip">Linux.do</span>
+                </div>
             </div>
-            <label class="switch-card" for="enabled">
-                <span class="switch-label">启用</span>
+            <label class="master-switch" for="enabled">
+                <span class="switch-label">扩展开关</span>
                 <input type="checkbox" id="enabled">
-                <span class="switch-ui" aria-hidden="true"></span>
+                <span class="switch-track" aria-hidden="true"></span>
+                <span class="switch-text">启用</span>
             </label>
         </header>
 
-        <section class="panel">
-            <div class="panel-group">
-                <label class="row">
-                    <input type="checkbox" id="autoRedirect">
-                    <span>自动进入树形评论</span>
-                </label>
-                <label class="row">
-                    <input type="checkbox" id="allowFlatView">
-                    <span>允许切回平铺模式</span>
-                </label>
+        <section class="panel settings-panel">
+            <div class="panel-title-row">
+                <h2>快捷设置</h2>
+                <span class="panel-subtitle">即时生效</span>
             </div>
-            <div class="panel-divider"></div>
-            <div class="panel-group">
-                <label class="row row-select">
-                    <span>默认排序模式</span>
+            <div class="setting-list">
+                <label class="setting-row" for="autoRedirect">
+                    <span class="setting-text">
+                        <strong>自动进入树形</strong>
+                        <small>访问帖子页优先跳转树形模式</small>
+                    </span>
+                    <input type="checkbox" id="autoRedirect">
+                </label>
+                <label class="setting-row" for="allowFlatView">
+                    <span class="setting-text">
+                        <strong>允许切回平铺</strong>
+                        <small>保留 View as flat 的回退入口</small>
+                    </span>
+                    <input type="checkbox" id="allowFlatView">
+                </label>
+                <label class="setting-row" for="forceNestedPriority">
+                    <span class="setting-text">
+                        <strong>强制树形优先</strong>
+                        <small>忽略历史平铺偏好</small>
+                    </span>
+                    <input type="checkbox" id="forceNestedPriority">
+                </label>
+                <label class="setting-row select-row" for="defaultSortMode">
+                    <span class="setting-text">
+                        <strong>默认排序模式</strong>
+                        <small>切换帖子时同步到目标排序</small>
+                    </span>
                     <select id="defaultSortMode" class="popup-select">
                         <option value="default">跟随站点</option>
                         <option value="top">Top</option>
@@ -45,16 +67,19 @@
                         <option value="old">Old</option>
                     </select>
                 </label>
-                <label class="row">
+                <label class="setting-row" for="enableReplyFolding">
+                    <span class="setting-text">
+                        <strong>折叠回复分支</strong>
+                        <small>长楼层对话可快速收起</small>
+                    </span>
                     <input type="checkbox" id="enableReplyFolding">
-                    <span>折叠回复分支</span>
                 </label>
             </div>
         </section>
 
         <section class="actions">
             <button id="openOptions" class="button">打开完整设置</button>
-            <button id="openSite" class="button secondary">打开 Linux.do</button>
+            <button id="openSite" class="button ghost">打开 Linux.do</button>
         </section>
 
         <p id="status" class="status" aria-live="polite"></p>
@@ -64,6 +89,7 @@
     </main>
 
     <script src="settings.js"></script>
+    <script src="routing.js"></script>
     <script src="popup.js"></script>
 </body>
 

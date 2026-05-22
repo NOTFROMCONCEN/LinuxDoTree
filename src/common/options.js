@@ -23,6 +23,7 @@
         interceptLinks: document.getElementById("interceptLinks"),
         allowFlatView: document.getElementById("allowFlatView"),
         rememberModePreference: document.getElementById("rememberModePreference"),
+        forceNestedPriority: document.getElementById("forceNestedPriority"),
         enableFloatingToggle: document.getElementById("enableFloatingToggle"),
         enableFloatingWidgetPlaceholder: document.getElementById("enableFloatingWidgetPlaceholder"),
         enableReplyFolding: document.getElementById("enableReplyFolding"),

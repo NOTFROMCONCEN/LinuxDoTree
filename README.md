@@ -19,6 +19,8 @@
 ## 目录结构
 
 - `src/common/`：共享脚本和选项页
+  - `settings.js`：设置默认值与迁移归一化
+  - `routing.js`：帖子路由与排序参数处理
 - `src/common/icons/`：扩展图标资源
 - `src/manifests/`：三端浏览器 manifest 模板
 - `scripts/`：构建辅助脚本
@@ -132,6 +134,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 - `-PreRelease`：发布为预发布版本
 - `-Draft`：先创建草稿 release
 - `-NotesFile .\release-notes.md`：使用自定义发行说明
+- `-DryRun`：只做构建和发布前检查，不打 tag / 不推送 / 不创建 release
+- `-CleanPackages -KeepLatest 12`：发布前清理旧打包文件，每个浏览器仅保留最近 N 个
 
 前置条件：
 
@@ -144,9 +148,10 @@ Set-ExecutionPolicy -Scope Process Bypass
 在扩展选项页中可以控制：
 
 - 是否自动跳转到树形评论页
-- 是否强制补上 `sort=old`
+- 默认排序模式（跟随站点 / Top / New / Old）
 - 是否拦截站内帖子链接点击
 - 是否允许点击 `View as flat` 回到平铺模式
+- 是否强制树形优先（忽略历史平铺偏好）
 
 扩展弹窗里还提供：
 

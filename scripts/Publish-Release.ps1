@@ -5,7 +5,10 @@ param(
     [string]$Remote = "origin",
     [switch]$PreRelease,
     [switch]$Draft,
-    [string]$NotesFile
+    [string]$NotesFile,
+    [switch]$DryRun,
+    [switch]$CleanPackages,
+    [int]$KeepLatest = 12
 )
 
 $ErrorActionPreference = "Stop"
@@ -102,6 +105,34 @@ function Get-ReleaseAssets {
     return $assets
 }
 
+function Cleanup-OldPackages {
+    param(
+        [string]$Root,
+        [int]$KeepCount
+    )
+
+    $packagesDir = Join-Path $Root "packages"
+    if (-not (Test-Path -LiteralPath $packagesDir)) {
+        return
+    }
+
+    if ($KeepCount -lt 1) {
+        $KeepCount = 1
+    }
+
+    $grouped = Get-ChildItem -LiteralPath $packagesDir -File -Filter "linuxdotree-*.zip" |
+        Group-Object {
+            if ($_.Name -match '^linuxdotree-(chrome|edge|firefox)-') { $Matches[1] } else { "other" }
+        }
+
+    foreach ($group in $grouped) {
+        $oldFiles = $group.Group | Sort-Object LastWriteTime -Descending | Select-Object -Skip $KeepCount
+        foreach ($file in $oldFiles) {
+            Remove-Item -LiteralPath $file.FullName -Force
+        }
+    }
+}
+
 $repoRoot = Get-RepoRoot
 Set-Location -LiteralPath $repoRoot
 
@@ -124,6 +155,20 @@ Write-Host "==> Build packages for $Version"
 Invoke-Checked -ScriptBlock { & (Join-Path $repoRoot "build.ps1") -Version $Version } -ErrorMessage "build.ps1 failed."
 
 $assets = Get-ReleaseAssets -Root $repoRoot -VersionName $Version
+
+if ($CleanPackages) {
+    Write-Host "==> Cleanup old packages (keep latest $KeepLatest per browser)"
+    Cleanup-OldPackages -Root $repoRoot -KeepCount $KeepLatest
+    $assets = Get-ReleaseAssets -Root $repoRoot -VersionName $Version
+}
+
+if ($DryRun) {
+    Write-Host "==> Dry run completed. No tag/release/push performed."
+    Write-Host "Release candidate: $tag"
+    Write-Host "Assets:"
+    $assets | ForEach-Object { Write-Host " - $_" }
+    exit 0
+}
 
 Write-Host "==> Create tag $tag"
 Invoke-Checked -ScriptBlock { git tag $tag } -ErrorMessage "git tag failed."
