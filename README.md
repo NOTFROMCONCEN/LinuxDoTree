@@ -24,6 +24,7 @@
 - `src/common/icons/`：扩展图标资源
 - `src/manifests/`：三端浏览器 manifest 模板
 - `scripts/`：构建辅助脚本
+  - `test-routing.js`：路由转换回归测试
 - `dist/`：构建后的浏览器扩展目录
 - `packages/`：打包后的 zip 文件
 - `build.ps1`：一键构建脚本
@@ -142,6 +143,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 - 工作区必须是干净状态（无未提交改动）
 - 当前分支必须是目标发布分支（默认 `main`）
 - 已登录 GitHub CLI：`gh auth login`
+- 已安装 Node.js，用于发布前运行路由回归测试
 
 ## 可配置项
 

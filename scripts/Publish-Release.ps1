@@ -138,6 +138,7 @@ Set-Location -LiteralPath $repoRoot
 
 Ensure-CommandExists -CommandName "git"
 Ensure-CommandExists -CommandName "gh"
+Ensure-CommandExists -CommandName "node"
 Ensure-GhAuth
 Ensure-CleanWorkingTree
 Ensure-CurrentBranch -ExpectedBranch $Branch
@@ -150,6 +151,9 @@ Invoke-Checked -ScriptBlock { git fetch $Remote } -ErrorMessage "git fetch faile
 
 Write-Host "==> Update $Branch (ff-only)"
 Invoke-Checked -ScriptBlock { git pull --ff-only $Remote $Branch } -ErrorMessage "git pull --ff-only failed."
+
+Write-Host "==> Run routing tests"
+Invoke-Checked -ScriptBlock { node (Join-Path $repoRoot "scripts/test-routing.js") } -ErrorMessage "routing tests failed."
 
 Write-Host "==> Build packages for $Version"
 Invoke-Checked -ScriptBlock { & (Join-Path $repoRoot "build.ps1") -Version $Version } -ErrorMessage "build.ps1 failed."
